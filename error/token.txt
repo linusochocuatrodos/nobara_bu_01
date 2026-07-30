@@ -1,0 +1,111 @@
+# Solución: Git push pide siempre el token como usuario
+
+## Contexto
+Al configurar Git con GitHub usando un Personal Access Token (PAT), un error de pegado hizo que el token quedara como **username** en la ventana de credenciales gráfica. Desde entonces, cada `git push` mostraba:
+
+```
+Password for 'https://[TOKEN_VIEJO]@github.com':
+```
+
+en vez de pedir el usuario normal. Limpiar `~/.git-credentials`, la URL del remoto, etc. no funcionaba porque la causa estaba en otra parte.
+
+---
+
+## Paso 1 — Verificar la URL del remoto
+
+```bash
+git remote -v
+```
+
+Si el token está metido en la URL, corregirla:
+
+```bash
+git remote set-url origin https://github.com/[TU_USUARIO]/[TU_REPO].git
+```
+
+---
+
+## Paso 2 — Revisar archivos de configuración
+
+Buscar credenciales guardadas en todos los lugares posibles:
+
+```bash
+git config --global --list | grep -i url
+cat ~/.gitconfig
+cat .git/config
+git config --global credential.helper
+git config --system --list
+git config --list --show-origin | grep -i credential
+cat ~/.netrc 2>&1
+cat ~/.config/git/config 2>&1
+```
+
+Si todo está limpio, descartar que el token esté guardado en un archivo.
+
+---
+
+## Paso 3 — Buscar el token en el sistema
+
+```bash
+grep -r "[TOKEN_VIEJO]" ~ 2>/dev/null
+```
+
+Revisar si aparece en historiales de portapapeles o shell. Si solo está ahí, son residuos inofensivos.
+
+---
+
+## Paso 4 — Matar procesos de git push colgados
+
+```bash
+jobs -l
+```
+
+Si hay procesos `git push` en estado "Stopped", matarlos:
+
+```bash
+kill -9 [PID1] [PID2]
+```
+
+---
+
+## Paso 5 — Desactivar el diálogo gráfico de credenciales
+
+La ventana que pide la contraseña es generada por el **gestor de credenciales gráfico del entorno de escritorio** (ej. ksshaskpass), invocado por la variable `SSH_ASKPASS`. El comportamiento queda cacheado a nivel de sesión gráfica.
+
+Solución:
+
+```bash
+unset SSH_ASKPASS
+unset GIT_ASKPASS
+git config --global core.askPass ""
+```
+
+Esto fuerza a Git a pedir credenciales **en la terminal** en texto plano, sin ventanas gráficas.
+
+---
+
+## Paso 6 — Push exitoso
+
+```bash
+git push -u origin [RAMA]
+```
+
+Ahora pide correctamente en terminal:
+
+```
+Username for 'https://github.com': [TU_USUARIO_DE_GITHUB]
+Password for 'https://[TU_USUARIO_DE_GITHUB]@github.com': [TU_TOKEN_NUEVO]
+```
+
+- **Username:** el nombre de usuario real de GitHub (el que aparece en la URL del repo).
+- **Password:** el Personal Access Token nuevo (generado con el mínimo permiso necesario, después de revocar el viejo).
+
+---
+
+## Paso 7 — Decisión de seguridad sobre guardar el token
+
+| Opción | Dónde guarda el token | Riesgo |
+|---|---|---|
+| **Sin helper** | En ningún lado, se pide cada vez | Ninguno — más seguro |
+| `cache` | Solo en memoria, tiempo limitado | Bajo |
+| `store` | Texto plano en `~/.git-credentials` | Alto — legible por cualquier proceso |
