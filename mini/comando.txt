@@ -1,0 +1,1 @@
+convert entrada.png -resize 1280x720^ -gravity center -extent 1280x720 miniatura.png
