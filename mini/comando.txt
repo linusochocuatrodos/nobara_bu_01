@@ -1,1 +1,2 @@
-convert entrada.png -resize 1280x720^ -gravity center -extent 1280x720 miniatura.png
+magick 1a.png 1b.png +append mini_1a.png
+convert mini_1a.png -resize 1280x720^ -gravity center -extent 1280x720 miniatura_1a.png
